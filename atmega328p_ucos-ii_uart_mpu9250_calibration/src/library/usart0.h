@@ -15,7 +15,8 @@
 
 void usart0Init(void);
 
-INT8U usart0Print(char *buffer);
+INT8U usart0Print(char *str);
+INT8U usart0PrintLen(char *str, uint8 len);
 INT8U usart0Hex8(uint8 hex8);
 INT8U usart0Hex16(uint16 hex16);
 INT8U usart0Hex32(uint32 hex32);

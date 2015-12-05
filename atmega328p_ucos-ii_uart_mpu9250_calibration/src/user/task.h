@@ -5,5 +5,6 @@
 
 void blink(void *pdata);
 void serial(void *pdata);
+void mpu6050Task(void *pdata);
 
 #endif

@@ -1,6 +1,6 @@
 #include "user.h"
 
-static OS_STK stack0[128];
+static OS_STK stack0[192];
 static OS_STK stack1[128];
 
 static void tickInit( void )
@@ -22,10 +22,13 @@ int main(void)
 	tickInit();
 
 	enablePullup();
+	i2cInit();
 	ledInit();
 	usart0Init();
 
-	OSTaskCreate(serial, (void *)0, &stack0[127], 0);
+	mpu6050DMPInit();
+
+	OSTaskCreate(mpu6050Task, (void *)0, &stack0[191], 0);
 	OSTaskCreate(blink, (void *)0, &stack1[127], 1);
 
 	OSStart();

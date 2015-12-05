@@ -9,14 +9,19 @@ char hexTable[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E'
 #define usart0TxIntFlagClr()	UCSR0A |= ex(TXC0)
 
 static char *usart0TxPtr;
+static uint8 usart0TxLen;
 static uint8 usart0TxCnt;
 static OS_EVENT *usart0TxRdy;
+static void (*usart0TxHandlerPtr)(void);
 
 static char usart0RxBuf[ex(UART0_RX_Q_SIZE)][ex(UART0_RX_SIZE)];
 static uint8 usart0RxCnt;
 static uint8 usart0RxQCnt;
 static void *usart0RxQPtr[ex(UART0_RX_Q_SIZE)];
 static OS_EVENT *usart0RxQ;
+
+static void usart0PrintHandler(void);
+static void usart0PrintLenHandler(void);
 
 void usart0Init(void)
 {
@@ -40,11 +45,27 @@ INT8U usart0Print(char *str)
 	INT8U err;
 	char temp;
 
-	usart0TxCnt = 0;
+	usart0TxHandlerPtr = usart0PrintHandler;
 	usart0TxPtr = str;
+	usart0TxCnt = 0;
 	temp = *str;
 	if (temp != '\0') {
 		UDR0 = temp;
+		OSSemPend(usart0TxRdy, UART0_TX_TIMEOUT, &err);
+	}
+	return err;
+}
+
+INT8U usart0PrintLen(char *str, uint8 len)
+{
+	INT8U err;
+
+	usart0TxHandlerPtr = usart0PrintLenHandler;
+	usart0TxPtr = str;
+	usart0TxLen = len;
+	usart0TxCnt = 0;
+	if (len > 0) {
+		UDR0 = *str;
 		OSSemPend(usart0TxRdy, UART0_TX_TIMEOUT, &err);
 	}
 	return err;
@@ -118,7 +139,7 @@ INT8U usart0Read(char **str)
 	return err;
 }
 
-static void usart0TxISRHandler(void)
+static void usart0PrintHandler(void)
 {
 	usart0TxCnt++;
 	if (*(usart0TxPtr + usart0TxCnt) == 0) {
@@ -130,7 +151,19 @@ static void usart0TxISRHandler(void)
 	}
 }
 
-static void usart0RxISRHandler(void)
+static void usart0PrintLenHandler(void)
+{
+	usart0TxCnt++;
+	if (usart0TxCnt == usart0TxLen) {
+		OSIntEnter();
+		OSSemPost(usart0TxRdy);
+		OSIntExit();
+	} else {
+		UDR0 = usart0TxPtr[usart0TxCnt];
+	}
+}
+
+static void usart0RxHandler(void)
 {
 	char usart0RxChar;
 
@@ -152,10 +185,10 @@ static void usart0RxISRHandler(void)
 
 ISR(USART_TX_vect)
 {
-	usart0TxISRHandler();
+	usart0TxHandlerPtr();
 }
 
 ISR(USART_RX_vect)
 {
-	usart0RxISRHandler();
+	usart0RxHandler();
 }
